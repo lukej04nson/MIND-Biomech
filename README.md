@@ -1,1 +1,1 @@
-# MIND-Biomech
+# Software Biomechanics
