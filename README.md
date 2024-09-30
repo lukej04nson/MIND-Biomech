@@ -1,3 +1,3 @@
 # Software Biomechanics
 Stage 1: Download VSCode
-\n Stage 2: 
+Stage 2: 
