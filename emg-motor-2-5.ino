@@ -59,26 +59,32 @@ void loop() {
   Serial.print("EMG Sensor: ");
   Serial.println(emgValue);
 
-  // Motor control based on EMG sensor deviation from baseline with hysteresis
-  if (emgValue > emgBaseline + HYSTERESIS) {
-    // If EMG value is significantly higher than baseline, rotate motor in one direction
-    if (!motorRunning || !motorDirection) {  // If motor is not already running or is in the wrong direction
-      motorRunning = true;
-      motorDirection = true;
-      myStepper.setSpeed(motorSpeed);
-    }
-    myStepper.step(stepsPerRevolution / 10);  // Move the motor continuously
-  } else if (emgValue < emgBaseline - HYSTERESIS) {
-    // If EMG value drops significantly below baseline, reverse the motor direction
-    if (!motorRunning || motorDirection) {  // If motor is not already running or is in the wrong direction
-      motorRunning = true;
-      motorDirection = false;
-      myStepper.setSpeed(motorSpeed);
-    }
-    myStepper.step(-stepsPerRevolution / 10);  // Move the motor in the opposite direction
-  } else {
-    motorRunning = false;  // Stop the motor when the EMG value is near the baseline
-  }
+  // // Motor control based on EMG sensor deviation from baseline with hysteresis
+  // if (emgValue > emgBaseline + HYSTERESIS) {
+  //   // If EMG value is significantly higher than baseline, rotate motor in one direction
+  //   if (!motorRunning || !motorDirection) {  // If motor is not already running or is in the wrong direction
+  //     motorRunning = true;
+  //     motorDirection = true;
+  //     myStepper.setSpeed(motorSpeed);
+  //   }
+  //   myStepper.step(stepsPerRevolution / 10);  // Move the motor continuously
+  // } else if (emgValue < emgBaseline - HYSTERESIS) {
+  //   // If EMG value drops significantly below baseline, reverse the motor direction
+  //   if (!motorRunning || motorDirection) {  // If motor is not already running or is in the wrong direction
+  //     motorRunning = true;
+  //     motorDirection = false;
+  //     myStepper.setSpeed(motorSpeed);
+  //   }
+  //   myStepper.step(-stepsPerRevolution / 10);  // Move the motor in the opposite direction
+  // } else {
+  //   motorRunning = false;  // Stop the motor when the EMG value is near the baseline
+  // }
+
+  if (sensorValues[0] > 350) {
+    myStepper.setSpeed(motorSpeed);
+    // step 1/100 of a revolution:
+    myStepper.step(stepsPerRevolution / 100);
+  } 
 
   delay(100);  // Short delay for sensor reading and motor control
 }
