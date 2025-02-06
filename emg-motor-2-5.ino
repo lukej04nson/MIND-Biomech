@@ -4,6 +4,7 @@
 #define NUM_SENSORS 5
 #define EMG_SENSOR_PIN A5  // Define the pin for the EMG sensor
 #define BASELINE_SAMPLES 100  // Number of samples to calculate the baseline
+#define HYSTERESIS 100  // Hysteresis value to prevent oscillation
 
 // Assign the analog pins to each sensor (flex sensors)
 const int sensorPins[NUM_SENSORS] = {A0, A1, A2, A3, A4};
@@ -12,6 +13,7 @@ const int sensorPins[NUM_SENSORS] = {A0, A1, A2, A3, A4};
 int sensorValues[NUM_SENSORS];
 int emgValue;
 int emgBaseline = 0;
+bool motorRunning = false;  // Track motor state
 
 // Stepper motor setup
 const int stepsPerRevolution = 1300;  // Adjust this to fit your motor
@@ -57,18 +59,25 @@ void loop() {
   Serial.print("EMG Sensor: ");
   Serial.println(emgValue);
 
-  // Motor control based on EMG sensor deviation from baseline
-  if (abs(emgValue - emgBaseline) > 50) {  // Threshold for significant change
-    // If EMG value deviates from baseline, rotate motor in one direction
-    if (motorDirection) {
-      myStepper.step(stepsPerRevolution / 100);
-    } else {
-      // Change direction if motorDirection is false
-      myStepper.step(-stepsPerRevolution / 100);
+  // Motor control based on EMG sensor deviation from baseline with hysteresis
+  if (emgValue > emgBaseline + HYSTERESIS) {
+    // If EMG value is significantly higher than baseline, rotate motor in one direction
+    if (!motorRunning || !motorDirection) {  // If motor is not already running or is in the wrong direction
+      motorRunning = true;
+      motorDirection = true;
+      myStepper.setSpeed(motorSpeed);
     }
+    myStepper.step(stepsPerRevolution / 10);  // Move the motor continuously
+  } else if (emgValue < emgBaseline - HYSTERESIS) {
+    // If EMG value drops significantly below baseline, reverse the motor direction
+    if (!motorRunning || motorDirection) {  // If motor is not already running or is in the wrong direction
+      motorRunning = true;
+      motorDirection = false;
+      myStepper.setSpeed(motorSpeed);
+    }
+    myStepper.step(-stepsPerRevolution / 10);  // Move the motor in the opposite direction
   } else {
-    // Reverse motor direction when EMG returns close to baseline
-    motorDirection = !motorDirection;
+    motorRunning = false;  // Stop the motor when the EMG value is near the baseline
   }
 
   delay(100);  // Short delay for sensor reading and motor control
