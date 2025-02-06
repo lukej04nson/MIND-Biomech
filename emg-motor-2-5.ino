@@ -19,7 +19,10 @@ bool motorRunning = false;  // Track motor state
 const int stepsPerRevolution = 1300;  // Adjust this to fit your motor
 Stepper myStepper(stepsPerRevolution, 8, 9, 10, 11);
 int motorSpeed = 100;  // Motor speed for movement (adjust as needed)
-bool motorDirection = true;  // Track motor direction
+
+bool motorActive = false; // Track if the motor is currently running
+unsigned long motorStartTime = 0;  // Store the time when the motor starts
+const unsigned long motorRunDuration = 10000;  // 10 seconds (in milliseconds)
 
 void setup() {
   Serial.begin(9600);
@@ -59,32 +62,25 @@ void loop() {
   Serial.print("EMG Sensor: ");
   Serial.println(emgValue);
 
-  // // Motor control based on EMG sensor deviation from baseline with hysteresis
-  // if (emgValue > emgBaseline + HYSTERESIS) {
-  //   // If EMG value is significantly higher than baseline, rotate motor in one direction
-  //   if (!motorRunning || !motorDirection) {  // If motor is not already running or is in the wrong direction
-  //     motorRunning = true;
-  //     motorDirection = true;
-  //     myStepper.setSpeed(motorSpeed);
-  //   }
-  //   myStepper.step(stepsPerRevolution / 10);  // Move the motor continuously
-  // } else if (emgValue < emgBaseline - HYSTERESIS) {
-  //   // If EMG value drops significantly below baseline, reverse the motor direction
-  //   if (!motorRunning || motorDirection) {  // If motor is not already running or is in the wrong direction
-  //     motorRunning = true;
-  //     motorDirection = false;
-  //     myStepper.setSpeed(motorSpeed);
-  //   }
-  //   myStepper.step(-stepsPerRevolution / 10);  // Move the motor in the opposite direction
-  // } else {
-  //   motorRunning = false;  // Stop the motor when the EMG value is near the baseline
-  // }
+  // Check if sensor 4 (index 3) goes below 230
+  if (sensorValues[3] < 230 && !motorActive) {
+    // Start the motor and record the start time
+    motorStartTime = millis();
+    motorActive = true;
+    Serial.println("Motor started");
+  }
 
-  if (sensorValues[3] < 230) {
+  // If the motor is active, keep it running for 10 seconds
+  if (motorActive) {
     myStepper.setSpeed(motorSpeed);
-    // step 1/100 of a revolution:
-    myStepper.step(stepsPerRevolution / 100);
-  } 
+    myStepper.step(stepsPerRevolution / 100);  // Rotate the motor
+
+    // Check if 10 seconds have passed
+    if (millis() - motorStartTime >= motorRunDuration) {
+      motorActive = false;  // Stop the motor
+      Serial.println("Motor stopped after 10 seconds");
+    }
+  }
 
   delay(100);  // Short delay for sensor reading and motor control
 }
