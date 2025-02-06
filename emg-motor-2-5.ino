@@ -80,7 +80,7 @@ void loop() {
   //   motorRunning = false;  // Stop the motor when the EMG value is near the baseline
   // }
 
-  if (sensorValues[0] > 350) {
+  if (sensorValues[3] < 230) {
     myStepper.setSpeed(motorSpeed);
     // step 1/100 of a revolution:
     myStepper.step(stepsPerRevolution / 100);
