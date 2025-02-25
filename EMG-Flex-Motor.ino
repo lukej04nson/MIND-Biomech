@@ -1,78 +1,97 @@
 #include <Stepper.h>
 
-const int stepsPerRevolution = 215;  // Steps per revolution of the motor
+// Define the number of sensors (flex + EMG)
+#define NUM_SENSORS 5
+#define EMG_SENSOR_PIN A5  // Define the pin for the EMG sensor
+#define BASELINE_SAMPLES 100  // Number of samples to calculate the baseline
+#define HYSTERESIS 100  // Hysteresis value to prevent oscillation
+
+// Assign the analog pins to each sensor (flex sensors)
+const int sensorPins[NUM_SENSORS] = {A0, A1, A2, A3, A4};
+
+// Variables for sensor values and EMG baseline
+int sensorValues[NUM_SENSORS];
+int emgValue;
+int emgBaseline = 0;
+bool motorRunning = false;  // Track motor state
+
+// Stepper motor setup
+const int stepsPerRevolution = 1300;  // Adjust this to fit your motor
 Stepper myStepper(stepsPerRevolution, 8, 9, 10, 11);
+int motorSpeed = 25;  // Motor speed for movement (adjust as needed)
 
-const int flexSensorPin = A0;        // Flex sensor pin
-const int muscleSensorPin = A1;      // MyoWare muscle sensor pin
-
-int flexSensorValue = 0;             // Variable to store flex sensor reading
-int muscleSensorValue = 0;           // Variable to store muscle sensor reading
-int baselineMuscleValue = 0;         // Baseline muscle sensor value
-
-const int flexTargetValue = 210;     // Target flex sensor value
-bool isReturning = false;            // Flag to track if motor is returning
-bool motorActive = false;            // Flag to track if the motor is currently moving
+bool motorActive = false; // Track if the motor is currently running
+unsigned long motorStartTime = 0;  // Store the time when the motor starts
+const unsigned long motorRunDuration = 10000;  // 10 seconds (in milliseconds)
 
 void setup() {
   Serial.begin(9600);
-  myStepper.setSpeed(30);            // Set motor speed (RPM)
 
-  // Calibrate the muscle sensor for 5 seconds
-  Serial.println("Calibrating muscle sensor...");
-  long sum = 0;
-  int numReadings = 0;
-  unsigned long startTime = millis();
-  while (millis() - startTime < 5000) { // 5 seconds calibration
-    muscleSensorValue = analogRead(muscleSensorPin);
-    sum += muscleSensorValue;
-    numReadings++;
-    delay(10); // Short delay for consistent readings
+  // Set up sensor pins (INPUT)
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    pinMode(sensorPins[i], INPUT);
   }
-  baselineMuscleValue = sum / numReadings; // Calculate average baseline value
-  Serial.print("Calibration complete. Baseline muscle value: ");
-  Serial.println(baselineMuscleValue);
+
+  // Set up the EMG sensor pin
+  pinMode(EMG_SENSOR_PIN, INPUT);
+
+  // Stepper motor initialization
+  myStepper.setSpeed(motorSpeed);  // Set motor speed once
+
+  // Calculate the EMG sensor baseline
+  calculateEMGBaseline();
 }
 
 void loop() {
-  // Read sensor values
-  flexSensorValue = analogRead(flexSensorPin);
-  muscleSensorValue = analogRead(muscleSensorPin);
-
-  // Debugging: Print sensor values to Serial Monitor
-  Serial.print("Flex Sensor: ");
-  Serial.print(flexSensorValue);
-  Serial.print(" | Muscle Sensor: ");
-  Serial.println(muscleSensorValue);
-
-  // Check for significant deviation from baseline
-  if (!motorActive && abs(muscleSensorValue - baselineMuscleValue) > baselineMuscleValue * 0.2) {
-    motorActive = true;              // Activate motor
-    isReturning = false;             // Ensure forward direction
-    Serial.println("Muscle activation detected. Starting motor.");
+  // Read each flex sensor and update their values
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    sensorValues[i] = analogRead(sensorPins[i]);
   }
 
-  if (motorActive) {
-    if (!isReturning) {
-      // Move motor forward
-      myStepper.step(1);
-
-      // Check if flex sensor has reached the target
-      if (flexSensorValue >= flexTargetValue) {
-        isReturning = true;          // Reverse direction
-        Serial.println("Target flex value reached. Reversing motor.");
-      }
-    } else {
-      // Move motor backward
-      myStepper.step(-1);
-
-      // Stop motor if it returns below the flex target value
-      if (flexSensorValue < flexTargetValue - 10) { // Adjust threshold for stopping
-        motorActive = false;
-        Serial.println("Motor returned to starting position. Stopping motor.");
-      }
-    }
+  // Print the flex sensor readings
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    Serial.print("Sensor ");
+    Serial.print(i + 1);
+    Serial.print(": ");
+    Serial.print(sensorValues[i]);
+    Serial.print("   ");
   }
 
-  delay(10); // Small delay to stabilize readings
+  // Read the EMG sensor value
+  emgValue = analogRead(EMG_SENSOR_PIN);
+  Serial.print("EMG Sensor: ");
+  Serial.println(emgValue);
+
+  // Check if EMG value exceeds threshold and motor is not running
+  if (emgValue > 100 && !motorActive) {
+    motorStartTime = millis();  // Record motor start time
+    motorActive = true;
+    Serial.println("Motor started");
+
+    // Move the motor continuously for a fixed number of steps
+    myStepper.step(stepsPerRevolution * 5);  // Adjust step count for desired motion
+  }
+
+  // Stop motor after 10 seconds
+  if (motorActive && millis() - motorStartTime >= motorRunDuration) {
+    motorActive = false;  // Stop the motor
+    Serial.println("Motor stopped after 10 seconds");
+  }
+
+  delay(100);  // Short delay for sensor reading
+}
+
+// Function to calculate EMG baseline
+void calculateEMGBaseline() {
+  long sum = 0;
+  
+  // Take multiple readings to get an average baseline
+  for (int i = 0; i < BASELINE_SAMPLES; i++) {
+    sum += analogRead(EMG_SENSOR_PIN);
+    delay(10);  // Short delay between readings
+  }
+
+  emgBaseline = sum / BASELINE_SAMPLES;
+  Serial.print("EMG Baseline: ");
+  Serial.println(emgBaseline);
 }
