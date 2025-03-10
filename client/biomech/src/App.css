@@ -36,3 +36,23 @@
     transform: rotate(360deg);
   }
 }
+
+.calibrate-button {
+  background-color: red;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 8px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: background-color 0.3s ease;
+}
+
+.calibrate-button:hover {
+  background-color: darkred;
+}
